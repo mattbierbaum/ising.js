@@ -6,6 +6,7 @@ var gboard = null;
 var gN = 256;
 var gt = 0;
 var gT = 2.26918531421;
+var gT = 2.28;
 var gfield = 0;
 var canvasN = 512;
 var gbuffer;
