@@ -1,0 +1,53 @@
+<html>
+<head>
+<script src="ising.js"></script>
+<link rel="stylesheet" href="style.css">
+
+<title>ising.js</title>
+</head>
+<body>
+    <div id='big'>
+    <center><h1>Ising simulation</h1></center>
+    <div id='ising'>
+        <canvas id='canvas' height=400 width=400></canvas>
+    </div>
+    <div id='panelcontainer'>
+        <!-- ===================  add control panel items between here ============== -->
+        <div id='panel'>
+            <div>
+                <label class='eb_label' for="temp" title="Temperature">Temperature</label>
+                <input style='width:150px;' type="range" id="temp" min=0 max=10.0 step=0.01 value=2 onchange="update_temp()"></input>
+                <span class='eb_span' id="label_temp"></span>
+            </div>
+            <div>
+                <label class='eb_label' for="field" title="External field">Field</label>
+                <input style="width:150px;" type="range" id="field" min=-5 max=5 step=0.01 value=0.0 onchange="update_field()"></input>
+                <span class='eb_span' id="label_field"></span>
+            </div>
+            <div>
+                <label class='eb_label' for="frames" title="Samples per redraw">Frameskip</label>
+                <input style="width:150px;" type="range" id="frames" min=0 max=10000 step=10 value=5000 onchange="update_frames()"></input>
+                <span class='eb_span' id="label_frames"></span>
+            </div>
+            <div>
+                <center>
+                <label class='eb_label' for='num'>Particle count</label>
+                <input type='text' id='num' value=0></input>
+                <input type='button' value='Change' onclick='init_board(gN, null)'></input>
+            </div>
+
+            <div>
+                <center>
+                <input type='button' id='pause' value='Pause'   onclick='update_pause()'></input>
+                <input type='button' id='restart' value='Restart' onclick='update_restart()'></input>
+                </center>
+            </div>
+        </div>
+        <!-- ==========================   and here ================================= -->
+    </div>
+    <center><p><strong>Keys:</strong> space, r   ---  <strong>Initial Conditions:</strong>
+        <input type='button' id='init_moshpit' value="Random" onclick='create_new()'></input>
+    </p></center>
+</div>
+</body>
+</html>
