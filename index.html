@@ -46,7 +46,12 @@
                 <span onclick='dotextbox(this.id)' class='eb_span' id="label_frames"></span>
                 <input style='width: 80px; display: none;' id='label_frames_input' type='text' value='' onblur='undotextbox(this.id)'>
             </div>
-            <div>
+            <div class="withspace">
+                <label class='eb_label' for='method'>Update method:</label>
+                <input type='radio' name='method' onclick='update_method()' checked=true id='method_metropolis' value='metropolis'>metropolis</input>
+                <input type='radio' name='method' onclick='update_method()' id='method_wolff' value='wolff'>wolff</input>
+            </div>
+            <div class="withspace">
                 <label class='eb_label' for='num'>Box length</label>
                 <!--<input type='text' id='num' value=0></input>
                 <input type='button' id='changenum' value='Change' onclick='change_num()'></input>-->
@@ -58,12 +63,6 @@
                     <option value="32">32</option>
                     <option value="16">16</option>
                 </select>
-            </div>
-            <div>
-                <center>
-                <label class='eb_label' for='method'>Update method:</label>
-                <input type='radio' name='method' onclick='update_method()' checked=true id='method_metropolis' value='metropolis'>metropolis</input>
-                <input type='radio' name='method' onclick='update_method()' id='method_wolff' value='wolff'>wolff</input>
             </div>
 
             <div>

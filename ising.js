@@ -14,6 +14,7 @@ var gbufferdata;
 
 var gtable_doflip;
 var gtable_flipprob;
+var wolfp = 1-Math.exp(-2./gT);
 
 // display variables
 var c, c2;
@@ -106,10 +107,6 @@ function update_metropolis(){
 }*/
 
 function update_wolff() {
-
-    // save probability
-    var p = 1. - Math.exp(-2./gT)
-
     // pick random site to start
     var x = Math.floor(Math.random()*gN);
     var y = Math.floor(Math.random()*gN);
@@ -124,7 +121,7 @@ function update_wolff() {
         next_ind = Number(next_ind);
         return (
                 (!(next_ind in cluster)) &&
-                (Math.random() < p) &&
+                (Math.random() < wolfp) &&
                 (gboard[next_ind]==state)
                )
     }
@@ -168,8 +165,6 @@ function update_wolff() {
         }
         frontier = newfrontier;
     }
-
-
     // having built the cluster, determine the probability of flipping
     var ds = -2 * state * Object.keys(cluster).length * gfield;
 
@@ -231,8 +226,12 @@ function update_field(){
     calculateFlipTable(gT);
 }
 function update_frames(){
-    framelog = parseFloat(document.getElementById('frames').value);
-    frameskip = Math.pow(10, framelog);
+    frameval = parseFloat(document.getElementById('frames').value);
+    if (update_func=='metropolis') {
+        frameskip = Math.pow(10, frameval);
+    } else {
+      frameskip = frameval;
+    }
     document.getElementById('label_frames').innerHTML = toFixed(frameskip,6);
 }
 
@@ -251,14 +250,16 @@ function update_method() {
         frame_label.innerHTML = toFixed(frameskip,0);
         frame_slider.step = 1;
         frame_slider.max=20;
+        frame_slider.min=1;
         frame_slider.value = frameskip;
     } else  {
         update_func = 'metropolis';
-        frameskip = 5000;
-        frame_label.innerHTML = toFixed(frameskip,0);
-        frame_slider.step = 10;
-        frame_slider.max=10000;
-        frame_slider.value = frameskip;
+        frameskip = Math.pow(10.,-0.5);
+        frame_label.innerHTML = toFixed(0.5,2);
+        frame_slider.step = 0.01;
+        frame_slider.max=0.5;
+        frame_slider.min=-2;
+        frame_slider.value = -0.5;
     }
 }
 
@@ -313,7 +314,7 @@ function neighborCount(x, y, N, b){
         1*(b[(x-1).mod(N) + y*N] > 0);
 }
 
-function update(){
+function update_metropolis(){
     var x = Math.floor(Math.random()*gN);
     var y = Math.floor(Math.random()*gN);
     var ind = x + y*gN;
@@ -342,8 +343,12 @@ function clear(){
 }
 
 var tick = function(T) {
+    var skip = frameskip;
+    if (update_func=='metropolis') {
+      skip = skip*gN*gN;
+    }
     if (dodraw == true) {
-        for (var i=0; i<frameskip*gN*gN; i++){
+        for (var i=0; i<skip; i++){
             frame++;
             update();
         }
@@ -372,6 +377,8 @@ function calculateFlipTable(temp){
         gtable_doflip[i+5] = 1*(de<=0);
         gtable_flipprob[i+5] = Math.exp(arg) * (temp > 0);
     }
+
+    wolfp = 1 - Math.exp( -2./temp );
 }
 
 

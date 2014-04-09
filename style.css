@@ -20,6 +20,10 @@ body {
     border: 1px solid black;
 }
 
+.withspace {
+  padding: 5px;
+}
+
 #ising {
     color: red;
     width: 512px;
