@@ -5,7 +5,7 @@ var gpx_size = 0;
 var gboard = null;
 var gN = 400;
 var gt = 0;
-var gT = 2;
+var gT = 2.26918531421;
 var gfield = 0;
 var canvasN = 400;
 var gbuffer;
@@ -38,6 +38,7 @@ function toFixed(value, precision) {
 }
 
 function init_board(N, board){
+    console.log("Beginning with "+N);
     gboard = [];
     gN = N;
 
@@ -120,6 +121,12 @@ function update_frames(){
     document.getElementById('label_frames').innerHTML = toFixed(frameskip,2);
 }
 
+function update_display(){
+    document.getElementById('label_temp').innerHTML = toFixed(gT,2);
+    document.getElementById('label_field').innerHTML = toFixed(gfield,2);
+    document.getElementById('label_frames').innerHTML = toFixed(frameskip,2);
+}
+
 function update_pause(){
     if (dodraw == true){
         document.getElementById('pause').value = 'Start';
@@ -129,6 +136,10 @@ function update_pause(){
         requestAnimationFrame(tick, c);
         dodraw = true;
     }
+}
+
+function update_restart(){
+    init_board(gN, null);
 }
 
 /*===============================================================================
@@ -156,6 +167,11 @@ function update_allcontrols(){
     document.getElementById('num').innerHTML = toFixed(0,2);
 }
 
+function change_num(){
+    gN = parseInt(document.getElementById('num').value);
+    init_board(gN, null);
+}
+
 var init = function() {
     // create the canvas element
     empty = document.createElement('canvas');
@@ -172,6 +188,7 @@ var init = function() {
 
     clear();
     init_board(400, null);
+    update_display();
     update_allcontrols();
 
     document.body.addEventListener('keyup', function(ev) {
