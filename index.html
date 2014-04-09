@@ -19,31 +19,45 @@
     <div id='big'>
     <center><h1>Ising simulation</h1></center>
     <div id='ising'>
-        <canvas id='canvas' height=400 width=400></canvas>
+        <canvas id='canvas' height=512 width=512></canvas>
     </div>
     <div id='panelcontainer'>
         <!-- ===================  add control panel items between here ============== -->
         <div id='panel'>
+            <div id='isinggraph'>
+                <canvas id='canvas-graph' height=200 width=370></canvas>
+            </div>
+            <br>
             <div>
                 <label class='eb_label' for="temp" title="Temperature">Temperature</label>
-                <input style='width:150px;' type="range" id="temp" min=0 max=10.0 step=0.01 value=2 onchange="update_temp()"></input>
-                <span class='eb_span' id="label_temp"></span>
+                <input style='width:150px;' type="range" id="temp" min=0 max=10.0 step=0.001 value=2 oninput='update_temp()' onchange="update_temp()"></input>
+                <span onclick='dotextbox(this.id)' class='eb_span' id="label_temp"></span>
+                <input style='width: 80px; display: none;' id='label_temp_input' type='text' value='' onblur='undotextbox(this.id)'>
             </div>
             <div>
                 <label class='eb_label' for="field" title="External field">Field</label>
-                <input style="width:150px;" type="range" id="field" min=-5 max=5 step=0.01 value=0.0 onchange="update_field()"></input>
-                <span class='eb_span' id="label_field"></span>
+                <input style="width:150px;" type="range" id="field" min=-5 max=5 step=0.001 value=0.0 oninput='update_field()' onchange="update_field()"></input>
+                <span onclick='dotextbox(this.id)' class='eb_span' id="label_field"></span>
+                <input style='width: 80px; display: none;' id='label_field_input' type='text' value='' onblur='undotextbox(this.id)'>
             </div>
             <div>
                 <label class='eb_label' for="frames" title="Samples per redraw">Frameskip</label>
-                <input style="width:150px;" type="range" id="frames" min=0 max=10000 step=10 value=5000 onchange="update_frames()"></input>
-                <span class='eb_span' id="label_frames"></span>
+                <input style="width:150px;" type="range" id="frames" min=-2 max=0.5 step=0.01 value=-0.5 oninput='update_frames()' onchange="update_frames()"></input>
+                <span onclick='dotextbox(this.id)' class='eb_span' id="label_frames"></span>
+                <input style='width: 80px; display: none;' id='label_frames_input' type='text' value='' onblur='undotextbox(this.id)'>
             </div>
             <div>
-                <center>
-                <label class='eb_label' for='num'>Particle count</label>
-                <input type='text' id='num' value=0></input>
-                <input type='button' value='Change' onclick='change_num()'></input>
+                <label class='eb_label' for='num'>Box length</label>
+                <!--<input type='text' id='num' value=0></input>
+                <input type='button' id='changenum' value='Change' onclick='change_num()'></input>-->
+                <select id='changenum' onchange='change_num()'>
+                    <option value="512">512</option>
+                    <option value="256" selected="selected">256</option>
+                    <option value="128">128</option>
+                    <option value="64">64</option>
+                    <option value="32">32</option>
+                    <option value="16">16</option>
+                </select>
             </div>
 
             <div>

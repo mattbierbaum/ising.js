@@ -4,7 +4,7 @@ body {
 
 #big {
     margin: 0 auto;
-    width: 810px;
+    width: 930px;
     padding: 0px;
     line-height: 1em;
 }
@@ -12,9 +12,19 @@ body {
 #ising {
     float: left;
     color: red;
-    width: 400px;
-    height: 400px;
+    width: 512px;
+    height: 512px;
     position: 'absolute';
+    left: 10px;
+    top: 10px;
+    border: 1px solid black;
+}
+
+#ising {
+    color: red;
+    width: 512px;
+    height: 200px;
+    position: 'relative';
     left: 10px;
     top: 10px;
     border: 1px solid black;
@@ -25,7 +35,7 @@ body {
     left: 220px;
     top: 10px;
     width: 400px;
-    height: 400px;
+    height: 512px;
     border: solid 1px black;
 
 }

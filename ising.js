@@ -3,21 +3,25 @@ var gpx_black = null;
 var gpx_white = null;
 var gpx_size = 0;
 var gboard = null;
-var gN = 400;
+var gN = 256;
 var gt = 0;
 var gT = 2.26918531421;
 var gfield = 0;
-var canvasN = 400;
+var canvasN = 512;
 var gbuffer;
 var gbufferdata;
 
+var gtable_doflip;
+var gtable_flipprob;
+
 // display variables
-var c;
+var c, c2;
 var ctx;
+var ctxgraph;
 var empty;
 var frame = 0;
 var keys = [0,0,0,0];
-var frameskip = 5000;
+var frameskip = 0.5;
 var dodraw = true;
 
 function rgb(r,g,b) {
@@ -78,7 +82,7 @@ function display_board(N, board){
     }
 }
 
-function energy(x, y, N, b){
+/*function energy(x, y, N, b){
     return 2*b[x+y*N]*(b[x + ((y+1).mod(N))*N] + 
         b[x + ((y-1).mod(N))*N] + 
         b[(x+1).mod(N) + y*N] + 
@@ -97,7 +101,7 @@ function update(){
             gboard[ind] = 1;
         put_pixel(x, y, gpx_size, gboard[x+y*gN]);
     }
-}
+}*/
 
 function draw_all(){
     gbuffer.data = gbufferdata;
@@ -108,23 +112,40 @@ function draw_all(){
 /*======================================================================
   the javascript interface stuff
 =========================================================================*/
+function dotextbox(id){
+    idt = id+"_input";
+    document.getElementById(id).style.display = 'none';
+    document.getElementById(idt).style.display = 'inline';
+    document.getElementById(idt).value = document.getElementById(id).innerHTML;
+    document.getElementById(idt).focus();
+}
+
+function undotextbox(id){
+    idt = id.replace("_input", "");
+    document.getElementById(idt).style.display = 'inline';
+    document.getElementById(id).style.display = 'none';
+}
+
 function update_temp(){
     gT = parseFloat(document.getElementById('temp').value);
-    document.getElementById('label_temp').innerHTML = toFixed(gT,2);
+    document.getElementById('label_temp').innerHTML = toFixed(gT,6);
+    calculateFlipTable(gT);
 }
 function update_field(){
     gfield = parseFloat(document.getElementById('field').value);
-    document.getElementById('label_field').innerHTML = toFixed(gfield,2);
+    document.getElementById('label_field').innerHTML = toFixed(gfield,6);
+    calculateFlipTable(gT);
 }
 function update_frames(){
-    frameskip = document.getElementById('frames').value;
-    document.getElementById('label_frames').innerHTML = toFixed(frameskip,2);
+    framelog = parseFloat(document.getElementById('frames').value);
+    frameskip = Math.pow(10, framelog);
+    document.getElementById('label_frames').innerHTML = toFixed(frameskip,6);
 }
 
 function update_display(){
-    document.getElementById('label_temp').innerHTML = toFixed(gT,2);
-    document.getElementById('label_field').innerHTML = toFixed(gfield,2);
-    document.getElementById('label_frames').innerHTML = toFixed(frameskip,2);
+    document.getElementById('label_temp').innerHTML = toFixed(gT,6);
+    document.getElementById('label_field').innerHTML = toFixed(gfield,6);
+    document.getElementById('label_frames').innerHTML = toFixed(frameskip,6);
 }
 
 function update_pause(){
@@ -143,17 +164,72 @@ function update_restart(){
 }
 
 /*===============================================================================
+ * graphing
+ *=============================================================================*/
+/*function calculateTics(xmax, xmin, ymax, ymin){
+    var dx = xmax - xmin;
+    var dy = ymax - ymin;
+
+    var oom_x = Math.abs(dx)<1?Math.round(Math.log10(dx)):Math.floor(Math.log10(dx));
+    var oom_y = Math.abs(dy)<1?Math.round(Math.log10(dy)):Math.floor(Math.log10(dy));
+    var pow10_x = Math.pow(10, oom_x);
+    var pow10_y = Math.pow(10, oom_y);
+
+    int idx = (int)(dx / pow10_x);
+    int idy = (int)(dy / pow10_y);
+
+    if (idx < 1) idx = 10; 
+    if (idy < 1) idy = 10; 
+
+    if (idx == 1 || idx == 2)
+        idx *= 5;
+    if (idy == 1 || idy == 2)
+        idy *= 5;
+
+    xtic_major = dx/idx;
+    ytic_major = dy/idy;
+    xtic_minor = xtic_major/5;
+    ytic_minor = ytic_major/5;
+}*/
+function neighborCount(x, y, N, b){
+    var i = x+y*N;
+    return 1*(b[x + ((y+1).mod(N))*N] > 0) + 
+        1*(b[x + ((y-1).mod(N))*N] > 0) + 
+        1*(b[(x+1).mod(N) + y*N] > 0) +
+        1*(b[(x-1).mod(N) + y*N] > 0);
+}
+
+function update(){
+    var x = Math.floor(Math.random()*gN);
+    var y = Math.floor(Math.random()*gN);
+    var ind = x + y*gN;
+    var neigh = neighborCount(x, y, gN, gboard);
+
+    var ind2 = Math.round(neigh + 5*(gboard[ind]+1)/2);
+    if (gtable_doflip[ind2] || Math.random() < gtable_flipprob[ind2]){
+        if (gboard[ind] == 1) 
+            gboard[ind] = -1;
+        else 
+            gboard[ind] = 1;
+        put_pixel(x, y, gpx_size, gboard[x+y*gN]);
+    }
+}
+
+/*===============================================================================
     initialization and drawing 
 ================================================================================*/
 function clear(){
     ctx.fillStyle = 'rgba(200,200,200,0.2)';
     ctx.clearRect(0, 0, c.width, c.height);
     ctx.fillRect(0,0,c.width,c.height);
+    ctxgraph.fillStyle = 'rgba(200,200,200,0.2)';
+    ctxgraph.clearRect(0, 0, c2.width, c2.height);
+    ctxgraph.fillRect(0,0,c2.width,c2.height);
 }
 
 var tick = function(T) {
     if (dodraw == true) {
-        for (var i=0; i<frameskip; i++){
+        for (var i=0; i<frameskip*gN*gN; i++){
             frame++;
             update();
         }
@@ -162,15 +238,28 @@ var tick = function(T) {
     }
 };
 
-function update_allcontrols(){
-    document.getElementById('num').value = gN;
-    document.getElementById('num').innerHTML = toFixed(0,2);
-}
-
 function change_num(){
-    gN = parseInt(document.getElementById('num').value);
+    gN = parseInt(document.getElementById('changenum').value);
     init_board(gN, null);
 }
+
+function calculateFlipTable(temp){
+    gtable_doflip = [];
+    gtable_flipprob = [];
+    for (var i=0; i<5; i++){
+        de = -2*(2*i - 4) - gfield;
+        arg = -de / temp;
+        gtable_doflip[i] = 1*(de<=0);
+        gtable_flipprob[i] = Math.exp(arg) * (temp > 0);
+    }
+    for (var i=0; i<5; i++){
+        de = 2*(2*i - 4) + gfield;
+        arg = -de / temp;
+        gtable_doflip[i+5] = 1*(de<=0);
+        gtable_flipprob[i+5] = Math.exp(arg) * (temp > 0);
+    }
+}
+
 
 var init = function() {
     // create the canvas element
@@ -179,17 +268,48 @@ var init = function() {
     c = document.getElementById('canvas');
     c.style.cursor = 'url('+empty.toDataURL()+')';
     ctx = c.getContext('2d');
+    c2 = document.getElementById('canvas-graph');
+    c2.style.cursor = 'url('+empty.toDataURL()+')';
+    ctxgraph = c2.getContext('2d');
     gbuffer = ctx.getImageData(0, 0, canvasN, canvasN);
     gbufferdata = gbuffer.data;
+
+    calculateFlipTable(gT);
 
     Number.prototype.mod = function(n) {
         return ((this%n)+n)%n;
     }
 
+    document.getElementById('label_temp_input').addEventListener("keydown", function(e) {
+        if (e.keyCode == 13){ 
+            e.preventDefault();
+            document.getElementById('temp').value = document.getElementById('label_temp_input').value;
+            update_temp();
+            undotextbox('label_temp_input');
+        }
+    }, false);
+
+    document.getElementById('label_field_input').addEventListener("keydown", function(e) {
+        if (e.keyCode == 13){ 
+            e.preventDefault();
+            document.getElementById('field').value = document.getElementById('label_field_input').value;
+            update_field();
+            undotextbox('label_field_input');
+        }
+    }, false);
+
+    document.getElementById('label_frames_input').addEventListener("keydown", function(e) {
+        if (e.keyCode == 13){ 
+            e.preventDefault();
+            document.getElementById('label_frames').innerHTML = document.getElementById('label_frames_input').value;
+            update_frames();
+            undotextbox('label_frames_input');
+        }
+    }, false);
+
     clear();
-    init_board(400, null);
+    init_board(gN, null);
     update_display();
-    update_allcontrols();
 
     document.body.addEventListener('keyup', function(ev) {
         if (ev.keyCode == 32){ ev.preventDefault(); update_pause(); } //space is pause
