@@ -166,7 +166,7 @@ function update_wolff() {
         frontier = newfrontier;
     }
     // having built the cluster, determine the probability of flipping
-    var ds = -2 * state * Object.keys(cluster).length * gfield;
+    var ds = 2 * state * Object.keys(cluster).length * gfield;
 
     if ( (ds < 0) || (Math.random() < Math.exp(-ds)) ) {
         // flip the cluster
