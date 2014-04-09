@@ -185,12 +185,12 @@ function update_wolff() {
 }
 
 
-var update_method = "metropolis";
+var update_func = "metropolis";
 function update() {
-    if (update_method=="metropolis") {
+    if (update_func=="metropolis") {
         update_metropolis();
     }
-    else if (update_method=="wolff") {
+    else if (update_func=="wolff") {
         update_wolff();
     }
 }
@@ -239,6 +239,26 @@ function update_display(){
     document.getElementById('label_temp').innerHTML = toFixed(gT,6);
     document.getElementById('label_field').innerHTML = toFixed(gfield,6);
     document.getElementById('label_frames').innerHTML = toFixed(frameskip,6);
+}
+
+function update_method() {
+    var frame_slider = document.getElementById('frames');
+    var frame_label = document.getElementById('label_frames');
+    if (document.getElementById('method_wolff').checked) {
+        update_func = 'wolff';
+        frameskip = 1;
+        frame_label.innerHTML = toFixed(frameskip,0);
+        frame_slider.step = 1;
+        frame_slider.max=20;
+        frame_slider.value = frameskip;
+    } else  {
+        update_func = 'metropolis';
+        frameskip = 5000;
+        frame_label.innerHTML = toFixed(frameskip,0);
+        frame_slider.step = 10;
+        frame_slider.max=10000;
+        frame_slider.value = frameskip;
+    }
 }
 
 function update_pause(){
