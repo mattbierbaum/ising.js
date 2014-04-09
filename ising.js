@@ -247,7 +247,7 @@ function update_method() {
     var frame_label = document.getElementById('label_frames');
     if (document.getElementById('method_wolff').checked) {
         update_func = 'wolff';
-        frameskip = 1;
+        frameskip = 2;
         frame_label.innerHTML = toFixed(frameskip,0);
         frame_slider.step = 1;
         frame_slider.max=20;
