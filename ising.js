@@ -15,6 +15,10 @@ var gtable_doflip;
 var gtable_flipprob;
 var wolfp = 1-Math.exp(-2./gT);
 
+var times = [];
+var gtimeseries_energy = [];
+var gtimeseries_mag = [];
+
 // display variables
 var c, c2;
 var ctx;
@@ -22,7 +26,7 @@ var ctxgraph;
 var empty;
 var frame = 0;
 var keys = [0,0,0,0];
-var frameskip = 0.5;
+var frameskip = 1;
 var dodraw = true;
 
 function rgb(r,g,b) {
@@ -31,19 +35,20 @@ function rgb(r,g,b) {
 
 
 function toFixed(value, precision) {
-    var precision = precision || 0,
-    neg = value < 0,
-    power = Math.pow(10, precision),
-    value = Math.round(value * power),
-    integral = String((neg ? Math.ceil : Math.floor)(value / power)),
-    fraction = String((neg ? -value : value) % power),
-    padding = new Array(Math.max(precision - fraction.length, 0) + 1).join('0');
-    var sneg = neg ? "-" : "";
+    var precision = precision || 0;
+    var sneg = (value < 0 && value > -1) ? "-" : "";
+    var neg = value < 0;
+    var power = Math.pow(10, precision);
+    var value = Math.round(value * power);
+    var integral = String((neg ? Math.ceil : Math.floor)(value / power));
+    var fraction = String((neg ? -value : value) % power);
+    var padding = new Array(Math.max(precision - fraction.length, 0) + 1).join('0');
     return sneg + (precision ? integral + '.' +  padding + fraction : integral);
 }
 
 function init_board(N, board){
     console.log("Beginning with "+N);
+    gt = 0;
     gboard = [];
     gN = N;
 
@@ -83,19 +88,24 @@ function display_board(N, board){
     }
 }
 
-/*function energy(x, y, N, b){
-    return 2*b[x+y*N]*(b[x + ((y+1).mod(N))*N] + 
+function energy(x, y, N, b){
+    return -b[x+y*N]*(b[x + ((y+1).mod(N))*N] + 
         b[x + ((y-1).mod(N))*N] + 
         b[(x+1).mod(N) + y*N] + 
         b[(x-1).mod(N) + y*N] + gfield);
 }
 
 
-function update_metropolis(){
+function energy_difference(x, y, N, b){
+    return -2*energy(x,y,N,b);
+}
+
+
+function update_metropolis_energy(){
     var x = Math.floor(Math.random()*gN);
     var y = Math.floor(Math.random()*gN);
     var ind = x + y*gN;
-    var de = energy(x, y, gN, gboard);
+    var de = energy_difference(x, y, gN, gboard);
     if (de < 0 || Math.random() < Math.exp(-de / gT)){
         if (gboard[ind] == 1) 
             gboard[ind] = -1;
@@ -103,7 +113,7 @@ function update_metropolis(){
             gboard[ind] = 1;
         put_pixel(x, y, gpx_size, gboard[x+y*gN]);
     }
-}*/
+}
 
 function update_wolff() {
     // pick random site to start
@@ -165,7 +175,8 @@ function update_wolff() {
         frontier = newfrontier;
     }
     // having built the cluster, determine the probability of flipping
-    var ds = 2 * state * Object.keys(cluster).length * gfield;
+    var clussize = Object.keys(cluster).length;
+    var ds = 2 * state * clussize * gfield;
 
     if ( (ds < 0) || (Math.random() < Math.exp(-ds)) ) {
         // flip the cluster
@@ -177,6 +188,7 @@ function update_wolff() {
             put_pixel(x,y, gpx_size, -state);
         }
     }
+    gt += clussize / (gN*gN);
 }
 
 
@@ -190,10 +202,26 @@ function update() {
     }
 }
 
+function update_measurements(){
+    var tenergy = 0;
+    var tmag = 0;
+    for (var i=0; i<gN; i++){
+    for (var j=0; j<gN; j++){
+        tenergy += energy(i,j,gN, gboard);
+        tmag += gboard[i+gN*j];
+    }}
+    tenergy /= gN*gN;
+    tmag /= gN*gN;
+    
+    document.getElementById('label_time').innerHTML = "Time: "+toFixed(gt, 4);
+    document.getElementById('label_energy').innerHTML = "Energy per spin: "+toFixed(tenergy, 5);
+    document.getElementById('label_mag').innerHTML = "Magnetization per spin: "+toFixed(tmag, 5);
+}
 
 function draw_all(){
     gbuffer.data = gbufferdata;
     ctx.putImageData(gbuffer, 0, 0);
+    update_measurements();
 }
 
 
@@ -253,12 +281,12 @@ function update_method() {
         frame_slider.value = frameskip;
     } else  {
         update_func = 'metropolis';
-        frameskip = Math.pow(10.,-0.5);
-        frame_label.innerHTML = toFixed(0.5,2);
+        frameskip = Math.pow(10.,0);
+        frame_label.innerHTML = toFixed(1,6);
         frame_slider.step = 0.01;
         frame_slider.max=0.5;
         frame_slider.min=-2;
-        frame_slider.value = -0.5;
+        frame_slider.value = 0;
     }
 }
 
@@ -277,6 +305,16 @@ function update_restart(){
     init_board(gN, null);
 }
 
+function update_step(){
+    if (update_func == 'metropolis'){
+        for (var i=0; i<gN*gN; i++)
+            update();
+    } else {
+        for (var i=0; i<Math.sqrt(gN); i++)
+            update();
+    }
+    draw_all();
+}
 /*===============================================================================
  * graphing
  *=============================================================================*/
@@ -327,6 +365,7 @@ function update_metropolis(){
             gboard[ind] = 1;
         put_pixel(x, y, gpx_size, gboard[x+y*gN]);
     }
+    gt += 1.0/(gN*gN);
 }
 
 /*===============================================================================
@@ -336,9 +375,9 @@ function clear(){
     ctx.fillStyle = 'rgba(200,200,200,0.2)';
     ctx.clearRect(0, 0, c.width, c.height);
     ctx.fillRect(0,0,c.width,c.height);
-    ctxgraph.fillStyle = 'rgba(200,200,200,0.2)';
+    /*ctxgraph.fillStyle = 'rgba(200,200,200,0.2)';
     ctxgraph.clearRect(0, 0, c2.width, c2.height);
-    ctxgraph.fillRect(0,0,c2.width,c2.height);
+    ctxgraph.fillRect(0,0,c2.width,c2.height);*/
 }
 
 var tick = function(T) {
@@ -388,9 +427,9 @@ var init = function() {
     c = document.getElementById('canvas');
     c.style.cursor = 'url('+empty.toDataURL()+')';
     ctx = c.getContext('2d');
-    c2 = document.getElementById('canvas-graph');
+    /*c2 = document.getElementById('canvas-graph');
     c2.style.cursor = 'url('+empty.toDataURL()+')';
-    ctxgraph = c2.getContext('2d');
+    ctxgraph = c2.getContext('2d');*/
     gbuffer = ctx.getImageData(0, 0, canvasN, canvasN);
     gbufferdata = gbuffer.data;
 
