@@ -89,7 +89,8 @@ function display_board(N, board){
         b[(x-1).mod(N) + y*N] + gfield);
 }
 
-function update(){
+
+function update_metropolis(){
     var x = Math.floor(Math.random()*gN);
     var y = Math.floor(Math.random()*gN);
     var ind = x + y*gN;
@@ -102,6 +103,98 @@ function update(){
         put_pixel(x, y, gpx_size, gboard[x+y*gN]);
     }
 }*/
+
+function update_wolff() {
+
+    // save probability
+    var p = 1. - Math.exp(-2./gT)
+
+    // pick random site to start
+    var x = Math.floor(Math.random()*gN);
+    var y = Math.floor(Math.random()*gN);
+    var ind = x + y*gN;
+
+    // get the initial state and seed
+    // the cluster
+    var sites = [ind];
+    var state = gboard[ind];
+
+    var is_good = function (next_ind) {
+        next_ind = Number(next_ind);
+        return (
+                (!(next_ind in cluster)) &&
+                (Math.random() < p) &&
+                (gboard[next_ind]==state)
+               )
+    }
+
+    var cluster = {};
+    var frontier = {};
+    cluster[ind] = 1;
+    frontier[ind] = 1;
+    var newfrontier = {};
+    var next_ind = 0;
+
+    while (Object.keys(frontier).length > 0) {
+        newfrontier = {};
+
+        for (var current_ind in frontier) {
+            current_ind = Number(current_ind);
+            x = current_ind.mod(gN);
+            y = Math.floor( current_ind / gN );
+
+            // do each neighbor
+            next_ind = x + ((y+1).mod(gN))*gN;
+            if (is_good(next_ind)) {
+                newfrontier[next_ind] = 1;
+                cluster[next_ind] = 1;
+            }
+            next_ind = x + ((y-1).mod(gN))*gN;
+            if (is_good(next_ind)) {
+                newfrontier[next_ind] = 1;
+                cluster[next_ind] = 1;
+            }
+            next_ind = (x+1).mod(gN) + y*gN;
+            if (is_good(next_ind)) {
+                newfrontier[next_ind] = 1;
+                cluster[next_ind] = 1;
+            }
+            next_ind = (x-1).mod(gN) + y*gN;
+            if (is_good(next_ind)) {
+                newfrontier[next_ind] = 1;
+                cluster[next_ind] = 1;
+            }
+        }
+        frontier = newfrontier;
+    }
+
+
+    // having built the cluster, determine the probability of flipping
+    var ds = -2 * state * Object.keys(cluster).length * gfield;
+
+    if ( (ds < 0) || (Math.random() < Math.exp(-ds)) ) {
+        // flip the cluster
+        for (var ind in cluster) {
+            ind = Number(ind);
+            x = ind % gN;
+            y = Math.floor( ind / gN );
+            gboard[ind] = -state;
+            put_pixel(x,y, gpx_size, -state);
+        }
+    }
+}
+
+
+var update_method = "metropolis";
+function update() {
+    if (update_method=="metropolis") {
+        update_metropolis();
+    }
+    else if (update_method=="wolff") {
+        update_wolff();
+    }
+}
+
 
 function draw_all(){
     gbuffer.data = gbufferdata;
