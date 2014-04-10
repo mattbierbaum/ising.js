@@ -47,9 +47,10 @@ function log10(val) {
     return Math.log(val) / Math.LN10;
 }
 
-function toFixed(value, precision) {
+function toFixed(value, precision, negspace) {
+    negspace = typeof negspace !== 'undefined' ? negspace : '';
     var precision = precision || 0;
-    var sneg = (value < 0) ? "-" : "";
+    var sneg = (value < 0) ? "-" : negspace;
     var neg = value < 0;
     var power = Math.pow(10, precision);
     var value = Math.round(value * power);
@@ -288,15 +289,15 @@ function update_measurements_labels(){
     lble = document.getElementById('label_energy');
     lblm = document.getElementById('label_mag');
 
-    lblt.innerHTML = "time = "+toFixed(gt, 4)+"   sweeps/sec = "+toFixed(sps, 3);
-    lble.innerHTML = "e = "+toFixed(genergy, 5);
-    lblm.innerHTML = "m = "+toFixed(gmag, 5);
+    lblt.innerHTML = "time = "+toFixed(gt, 4, ' ')+"   sweeps/sec = "+toFixed(sps, 3, ' ');
+    lble.innerHTML = "e = "+toFixed(genergy, 5, ' ');
+    lblm.innerHTML = "m = "+toFixed(gmag, 5, ' ');
 
-    lble.innerHTML += "   &lt;e&gt; = "+toFixed(ge_avg, 5);
-    lblm.innerHTML += "   &lt;m&gt; = "+toFixed(gm_avg, 5);
+    lble.innerHTML += "   &lt;e&gt; = "+toFixed(ge_avg, 5, ' ');
+    lblm.innerHTML += "   &lt;m&gt; = "+toFixed(gm_avg, 5, ' ');
 
-    lble.innerHTML += "   Var(e) = "+toFixed(ge_var, 7);
-    lblm.innerHTML += "   Var(m) = "+toFixed(gm_var, 7);
+    lble.innerHTML += "   Var(e) = "+toFixed(ge_var, 7, ' ');
+    lblm.innerHTML += "   Var(m) = "+toFixed(gm_var, 7, ' ');
 }
 
 function hidden_link_download(uri, filename){
@@ -379,7 +380,12 @@ function undotextbox(id){
 }
 
 function update_temp(){
-    gT = parseFloat(document.getElementById('temp').value);
+    min = document.getElementById('temp').min;
+    gTval = parseFloat(document.getElementById('temp').value);
+    if (gTval <= min)
+        gT = 0;
+    else
+        gT = Math.pow(10, gTval);
     document.getElementById('label_temp').innerHTML = toFixed(gT,6);
     calculateFlipTable(gT);
 }
@@ -500,8 +506,8 @@ function draw_series_graph(xl, yl){
     xtic_minor = xtic_major/5;
     ytic_minor = ytic_major/5;
 
-    ymin = Math.floor(ymin/ytic_major)*ytic_major;
-    ymax = Math.ceil(ymax/ytic_major)*ytic_major;
+    /*ymin = Math.floor(ymin/ytic_major)*ytic_major;
+    ymax = Math.ceil(ymax/ytic_major)*ytic_major;*/
 
     ctxgraph.font='12px sans-serif';
     ctxgraph.fillStyle='rgba(0,0,0,1)';
@@ -649,7 +655,16 @@ var init = function() {
     document.getElementById('label_temp_input').addEventListener("keydown", function(e) {
         if (e.keyCode == 13){ 
             e.preventDefault();
-            document.getElementById('temp').value = document.getElementById('label_temp_input').value;
+            step = document.getElementById('temp').step;
+            min = document.getElementById('temp').min;
+            tval = parseFloat(document.getElementById('label_temp_input').value);
+
+            if (tval <= Math.pow(10, min))
+                logval = min - 2*step;
+            else
+                logval = log10(tval);
+
+            document.getElementById('temp').value = logval;
             update_temp();
             undotextbox('label_temp_input');
         }
@@ -667,7 +682,11 @@ var init = function() {
     document.getElementById('label_frames_input').addEventListener("keydown", function(e) {
         if (e.keyCode == 13){ 
             e.preventDefault();
-            document.getElementById('label_frames').innerHTML = document.getElementById('label_frames_input').value;
+            tval = parseFloat(document.getElementById('label_frames_input').value);
+            if (update_func=='metropolis')
+                document.getElementById('frames').value = log10(tval);
+            else
+                document.getElementById('frames').value = tval;
             update_frames();
             undotextbox('label_frames_input');
         }

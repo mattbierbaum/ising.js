@@ -34,7 +34,7 @@
             <br>
             <div>
                 <label class='eb_label' for="temp" title="Temperature">Temperature</label>
-                <input style='width:150px;' type="range" id="temp" min=0 max=10.0 step=0.00001 value=2 oninput='update_temp()' onchange="update_temp()"></input>
+                <input style='width:150px;' type="range" id="temp" min=-5 max=2 step=0.0001 value=0 oninput='update_temp()' onchange="update_temp()"></input>
                 <span onclick='dotextbox(this.id)' class='eb_span' id="label_temp"></span>
                 <input style='width: 80px; display: none;' id='label_temp_input' type='text' value='' onblur='undotextbox(this.id)'>
             </div>
