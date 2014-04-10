@@ -474,7 +474,7 @@ function draw_series_graph(xl, yl){
     var xllength = xl.length;
     var xmax, xmin, ymax, ymin;
     xmax = ymax = -1e10; xmin = ymin = 1e10;
-    var skip = Math.floor(1+(xllength/gw));
+    var skip = 1;//Math.floor(1+(xllength/gw));
 
     for (var i=0; i<xllength; i+=skip){
         if (xl[i] < xmin) xmin = xl[i];
