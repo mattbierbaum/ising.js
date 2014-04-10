@@ -49,7 +49,7 @@ function log10(val) {
 
 function toFixed(value, precision) {
     var precision = precision || 0;
-    var sneg = (value < 0) ? "-" : " ";
+    var sneg = (value < 0) ? "-" : "";
     var neg = value < 0;
     var power = Math.pow(10, precision);
     var value = Math.round(value * power);
