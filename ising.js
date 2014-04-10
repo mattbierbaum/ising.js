@@ -37,7 +37,7 @@ var empty;
 var frameskip = 1;
 var onefill = 0;
 var dodraw = true;
-var gh = 175;
+var gh = 150;
 var gw = 370;
 
 function rgb(r,g,b) {
@@ -133,7 +133,7 @@ function update_metropolis(){
         if (!onefill)
             put_pixel(x, y, gpx_size, gboard[x+y*gN]);
 
-        genergy += 2.0*de/(gN*gN);
+        genergy += 1.0*de/(gN*gN);
         gmag += 2.0*gboard[ind]/(gN*gN);
     }
     gt += 1.0/(gN*gN);
@@ -212,7 +212,7 @@ function update_wolff() {
             put_pixel(x,y, gpx_size, -state);
 
             de = energy_difference(x, y, gN, gboard);
-            genergy += 2.0*de/(gN*gN);
+            genergy += 1.0*de/(gN*gN);
             gmag += 2.0*gboard[ind]/(gN*gN);
         }
     }
@@ -275,7 +275,7 @@ function reset_measurements(){
         genergy += energy(i,j,gN, gboard);
         gmag += gboard[i+gN*j];
     }}
-    genergy /= gN*gN;
+    genergy /= gN*gN*2;
     gmag /= gN*gN;
 
     ge_avg = genergy;
@@ -292,11 +292,22 @@ function update_measurements_labels(){
     lble.innerHTML = "e = "+toFixed(genergy, 5);
     lblm.innerHTML = "m = "+toFixed(gmag, 5);
 
-    lble.innerHTML += "  &lt;e&gt;  = "+toFixed(ge_avg, 5);
-    lblm.innerHTML += " <|m|> = "+toFixed(gm_avg, 5);
+    lble.innerHTML += "   &lt;e&gt; = "+toFixed(ge_avg, 5);
+    lblm.innerHTML += "   &lt;m&gt; = "+toFixed(gm_avg, 5);
 
-    lble.innerHTML += " Var(e) = "+toFixed(ge_var, 7);
-    lblm.innerHTML += " Var(m) = "+toFixed(gm_var, 7);
+    lble.innerHTML += "   Var(e) = "+toFixed(ge_var, 7);
+    lblm.innerHTML += "   Var(m) = "+toFixed(gm_var, 7);
+}
+
+function hidden_link_download(uri, filename){
+    var link = document.createElement('a');
+    link.href = uri;
+    link.style.display = 'none';
+    link.download = filename
+    link.id = 'templink';
+    document.body.appendChild(link);
+    document.getElementById('templink').click();
+    document.body.removeChild(document.getElementById('templink'));
 }
 
 function download_measurements(){
@@ -308,15 +319,17 @@ function download_measurements(){
         csv += gtimeseries_mag[i]+"\n";
     }
     var encoded = encodeURI(csv);
+    hidden_link_download(encoded, 'ising-data.txt');
+}
 
-    var link = document.createElement('a');
-    link.href = encoded;
-    link.style.display = 'none';
-    link.download = 'ising-data.txt';
-    link.id = 'templink';
-    document.body.appendChild(link);
-    document.getElementById('templink').click();
-    document.body.removeChild(document.getElementById('templink'));
+function download_field(){
+    uri = c.toDataURL("image/png");
+    hidden_link_download(uri, 'ising-field.png');
+}
+
+function download_graph(){
+    uri = c2.toDataURL("image/png");
+    hidden_link_download(uri, 'ising-graph.png');
 }
 
 function draw_all(){
@@ -441,12 +454,14 @@ function update_step(){
     }
     draw_all();
 }
+
 /*===============================================================================
  * graphing
  *=============================================================================*/
-var axis = 40;
-function x2px(x, xmin, dx) {return ((x - xmin) / dx) * (gw - axis) + axis; }
-function y2px(y, ymin, dy) {return gh - ((y - ymin) / dy * gh); }
+var xaxis = 40;
+var yaxis = 5;
+function x2px(x, xmin, dx) {return ((x - xmin) / dx) * (gw - xaxis) + xaxis; }
+function y2px(y, ymin, dy) {return gh - ((y - ymin) / dy * (gh - 2*yaxis) + yaxis); }
 var graph_type = "energy";
 
 function draw_series_graph(xl, yl){
@@ -485,24 +500,27 @@ function draw_series_graph(xl, yl){
     xtic_minor = xtic_major/5;
     ytic_minor = ytic_major/5;
 
+    ymin = Math.floor(ymin/ytic_major)*ytic_major;
+    ymax = Math.ceil(ymax/ytic_major)*ytic_major;
+
     ctxgraph.font='12px sans-serif';
     ctxgraph.fillStyle='rgba(0,0,0,1)';
 
     ctxgraph.beginPath();
-    ctxgraph.moveTo(axis, 0);
-    ctxgraph.lineTo(axis, gh);
+    ctxgraph.moveTo(xaxis, 0);
+    ctxgraph.lineTo(xaxis, gh);
     ctxgraph.stroke();
 
     ctxgraph.beginPath();
-    ctxgraph.moveTo(axis, y2px(0, ymin, dy));
+    ctxgraph.moveTo(xaxis, y2px(0, ymin, dy));
     ctxgraph.lineTo(gw, y2px(0, ymin, dy));
     ctxgraph.stroke();
 
     for (var i=-idy; i<=idy; i++){
         y = y2px(i*ytic_major+(ymin+ymax)/2, ymin, dy);
         ctxgraph.beginPath();
-        ctxgraph.moveTo(axis-5, y);
-        ctxgraph.lineTo(axis, y);
+        ctxgraph.moveTo(xaxis-5, y);
+        ctxgraph.lineTo(xaxis, y);
         ctxgraph.stroke();
         ctxgraph.fillText(toFixed(i*ytic_major+(ymin+ymax)/2, 3), 0, y+4);
     }
@@ -510,8 +528,8 @@ function draw_series_graph(xl, yl){
     for (var i=-idy*5; i<=idy*5; i++){
         y = y2px(i*ytic_minor+(ymin+ymax)/2, ymin, dy);
         ctxgraph.beginPath();
-        ctxgraph.moveTo(axis-2, y);
-        ctxgraph.lineTo(axis, y);
+        ctxgraph.moveTo(xaxis-2, y);
+        ctxgraph.lineTo(xaxis, y);
         ctxgraph.stroke();
     }
 
