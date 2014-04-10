@@ -12,6 +12,7 @@ var gT = 2.26918531421;
 var gfield = 0;
 
 var ge_avg, ge_var, gm_avg, gm_var;
+var gtable_de;
 var gtable_doflip;
 var gtable_flipprob;
 var wolfp = 1-Math.exp(-2./gT);
@@ -25,6 +26,8 @@ var gtimeseries_mavg = [];
 var genergy = 0;
 var gmag = 0;
 var frame = 0;
+var sweeps = 0;
+var lasttime = 0;
 
 // display variables
 var c, c2;
@@ -32,8 +35,9 @@ var ctx;
 var ctxgraph;
 var empty;
 var frameskip = 1;
+var onefill = 0;
 var dodraw = true;
-var gh = 200;
+var gh = 175;
 var gw = 370;
 
 function rgb(r,g,b) {
@@ -56,7 +60,6 @@ function toFixed(value, precision) {
 }
 
 function init_board(N, board){
-    console.log("Beginning with "+N);
     gt = 0;
     gboard = [];
     gN = N;
@@ -126,7 +129,9 @@ function update_metropolis(){
     var de = energy_difference(x, y, gN, gboard);
     if (de <= 0 || Math.random() < Math.exp(-de / gT)){
         gboard[ind] = -gboard[ind];
-        put_pixel(x, y, gpx_size, gboard[x+y*gN]);
+
+        if (!onefill)
+            put_pixel(x, y, gpx_size, gboard[x+y*gN]);
 
         genergy += 2.0*de/(gN*gN);
         gmag += 2.0*gboard[ind]/(gN*gN);
@@ -241,9 +246,13 @@ function push_measurement(t, e, m){
     gm_var = ((n-1)*gm_var + (m - gm_avg)*(m - gm0)) / n;
     gtimeseries_eavg.push(ge_avg);
     gtimeseries_mavg.push(gm_avg);
+
+    sps = 1000.0*sweeps/(Date.now() - lasttime);
 }
 
 function init_measurements(){
+    frame = 0;
+    sweeps = 0;
     gt = 0;
     ge_avg = ge_var = gm_avg = gm_var = 0;
     times = [];
@@ -251,6 +260,7 @@ function init_measurements(){
     gtimeseries_mag = [];
     gtimeseries_eavg = [];
     gtimeseries_mavg = [];
+    lasttime = Date.now();
     reset_measurements();
     push_measurement(gt, genergy, gmag);
 }
@@ -270,6 +280,7 @@ function reset_measurements(){
 
     ge_avg = genergy;
     gm_avg = gmag;
+    update_measurements_labels();
 }
 
 function update_measurements_labels(){
@@ -277,7 +288,7 @@ function update_measurements_labels(){
     lble = document.getElementById('label_energy');
     lblm = document.getElementById('label_mag');
 
-    lblt.innerHTML = "time = "+toFixed(gt, 4);
+    lblt.innerHTML = "time = "+toFixed(gt, 4)+"   sweeps/sec = "+toFixed(sps, 3);
     lble.innerHTML = "e = "+toFixed(genergy, 5);
     lblm.innerHTML = "m = "+toFixed(gmag, 5);
 
@@ -288,12 +299,38 @@ function update_measurements_labels(){
     lblm.innerHTML += " Var(m) = "+toFixed(gm_var, 7);
 }
 
+function download_measurements(){
+    var csv = "data:text/csv;charset=utf-8,";
+    csv += "# time, energy per spin, magnetization per spin\n";
+    for (var i=0; i<times.length; i++){
+        csv += times[i]+", ";
+        csv += gtimeseries_energy[i]+", ";
+        csv += gtimeseries_mag[i]+"\n";
+    }
+    var encoded = encodeURI(csv);
+
+    var link = document.createElement('a');
+    link.href = encoded;
+    link.style.display = 'none';
+    link.download = 'ising-data.txt';
+    link.id = 'templink';
+    document.body.appendChild(link);
+    document.getElementById('templink').click();
+    document.body.removeChild(document.getElementById('templink'));
+}
+
 function draw_all(){
+    if (onefill)
+        display_board(gN, gboard);
+
     gbuffer.data = gbufferdata;
     ctx.putImageData(gbuffer, 0, 0);
     push_measurement(gt, genergy, gmag);
     update_measurements_labels();
+    draw_graph();
+}
 
+function draw_graph(){
     cleargraph();
     if (graph_type != "none"){
         x = times;
@@ -343,8 +380,10 @@ function update_frames(){
     frameval = parseFloat(document.getElementById('frames').value);
     if (update_func=='metropolis') {
         frameskip = Math.pow(10, frameval);
+        onefill = frameskip > 2*gN*gN ? 1 : 0;
     } else {
       frameskip = frameval;
+        onefill = frameskip > 3 ? 1 : 0;
     }
     document.getElementById('label_frames').innerHTML = toFixed(frameskip,6);
 }
@@ -441,7 +480,6 @@ function draw_series_graph(xl, yl){
     if (idy == 1 || idy == 2)
         idy *= 5;
 
-    console.log(idx);
     xtic_major = dx/idx;
     ytic_major = dy/idy;
     xtic_minor = xtic_major/5;
@@ -487,20 +525,28 @@ function draw_series_graph(xl, yl){
 
 function change_graph(){
     graph_type = document.getElementById('changegraph').value;
+    draw_graph();
+}
+
+function calculateFlipTable(temp){
+    wolfp = 1 - Math.exp( -2./temp );
 }
 
 /*function calculateFlipTable(temp){
+    gtable_de = [];
     gtable_doflip = [];
     gtable_flipprob = [];
     for (var i=0; i<5; i++){
         de = -2*(2*i - 4) - gfield;
         arg = -de / temp;
+        gtable_de[i] = de;
         gtable_doflip[i] = 1*(de<=0);
         gtable_flipprob[i] = Math.exp(arg) * (temp > 0);
     }
     for (var i=0; i<5; i++){
         de = 2*(2*i - 4) + gfield;
         arg = -de / temp;
+        gtable_de[i+5] = de;
         gtable_doflip[i+5] = 1*(de<=0);
         gtable_flipprob[i+5] = Math.exp(arg) * (temp > 0);
     }
@@ -516,11 +562,11 @@ function update_metropolis(){
 
     var ind2 = Math.round(neigh + 5*(gboard[ind]+1)/2);
     if (gtable_doflip[ind2] || Math.random() < gtable_flipprob[ind2]){
-        if (gboard[ind] == 1) 
-            gboard[ind] = -1;
-        else 
-            gboard[ind] = 1;
+        gboard[ind] = -gboard[ind];
         put_pixel(x, y, gpx_size, gboard[x+y*gN]);
+
+        genergy += 2.0*de/(gN*gN);
+        gmag += 2.0*gboard[ind]/(gN*gN);
     }
     gt += 1.0/(gN*gN);
 }*/
@@ -550,6 +596,7 @@ var tick = function(T) {
             frame++;
             update();
         }
+        sweeps = 1.0*frame / (gN*gN);
         draw_all();
         requestAnimationFrame(tick, c);
     }
@@ -560,9 +607,6 @@ function change_num(){
     init_board(gN, null);
 }
 
-function calculateFlipTable(temp){
-    wolfp = 1 - Math.exp( -2./temp );
-}
 
 
 var init = function() {
