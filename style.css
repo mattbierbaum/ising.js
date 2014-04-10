@@ -24,6 +24,15 @@ body {
   padding: 5px;
 }
 
+.code {
+    font-family: 'monospace';
+    font-size: 12px;
+}
+
+pre.code {
+    margin: 0px;
+}
+
 #ising {
     color: red;
     width: 512px;
@@ -76,4 +85,6 @@ body {
 .eb_span  {
     position: relative;
     top: -6px;
+    font-family: 'monospace';
+    font-size: 13px;
 }

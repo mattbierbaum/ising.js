@@ -24,15 +24,13 @@
     <div id='panelcontainer'>
         <!-- ===================  add control panel items between here ============== -->
         <div id='panel'>
-            <span id='label_time'>Time: initializing</span>
+            <pre class='code' id='label_time'>initializing</pre>
+            <pre class='code' id='label_energy'>initializing</pre>
+            <pre class='code' id='label_mag'>initializing</pre>
             <br>
-            <span id='label_energy'>Energy per spin: initializing</span>
-            <br>
-            <span id='label_mag'>Magnetization per spin: initializing</span>
-            <br>
-            <!--<div id='isinggraph'>
+            <div id='isinggraph'>
                 <canvas id='canvas-graph' height=200 width=370></canvas>
-            </div>-->
+            </div>
             <br>
             <div>
                 <label class='eb_label' for="temp" title="Temperature">Temperature</label>
@@ -47,8 +45,8 @@
                 <input style='width: 80px; display: none;' id='label_field_input' type='text' value='' onblur='undotextbox(this.id)'>
             </div>
             <div>
-                <label class='eb_label' for="frames" title="Samples per redraw">Frameskip</label>
-                <input style="width:150px;" type="range" id="frames" min=-2 max=0.5 step=0.01 value=0 oninput='update_frames()' onchange="update_frames()"></input>
+                <label class='eb_label' for="frames" title="Samples per redraw">Sweep skip</label>
+                <input style="width:150px;" type="range" id="frames" min=-2 max=2 step=0.01 value=0 oninput='update_frames()' onchange="update_frames()"></input>
                 <span onclick='dotextbox(this.id)' class='eb_span' id="label_frames"></span>
                 <input style='width: 80px; display: none;' id='label_frames_input' type='text' value='' onblur='undotextbox(this.id)'>
             </div>
@@ -70,12 +68,25 @@
                     <option value="16">16</option>
                 </select>
             </div>
+            <div class="withspace">
+                <label class='eb_label' for='num'>Graph data</label>
+                <!--<input type='text' id='num' value=0></input>
+                <input type='button' id='changenum' value='Change' onclick='change_num()'></input>-->
+                <select id='changegraph' onchange='change_graph()'>
+                    <option value="none">none</option>
+                    <option value="energy" selected='selected'>e(t)</option>
+                    <option value="eavg">&lt;e&gt;(t)</option>
+                    <option value="mag">m(t)</option>
+                    <option value="mavg">&lt;m&gt;(t)</option>
+                </select>
+            </div>
 
             <div>
                 <center>
                 <input type='button' id='dostep' value='Step'   onclick='update_step()'></input>
                 <input type='button' id='pause' value='Pause'   onclick='update_pause()'></input>
                 <input type='button' id='restart' value='Restart' onclick='update_restart()'></input>
+                <input type='button' id='restart' value='Reset measurements' onclick='init_measurements()'></input>
                 </center>
             </div>
         </div>

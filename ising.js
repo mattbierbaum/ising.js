@@ -2,45 +2,54 @@
 var gpx_black = null;
 var gpx_white = null;
 var gpx_size = 0;
-var gboard = null;
-var gN = 256;
-var gt = 0;
-var gT = 2.26918531421;
-var gfield = 0;
 var canvasN = 512;
 var gbuffer;
 var gbufferdata;
 
+var gboard = null;
+var gN = 256;
+var gT = 2.26918531421;
+var gfield = 0;
+
+var ge_avg, ge_var, gm_avg, gm_var;
 var gtable_doflip;
 var gtable_flipprob;
 var wolfp = 1-Math.exp(-2./gT);
 
+var gt = 0;
 var times = [];
 var gtimeseries_energy = [];
 var gtimeseries_mag = [];
+var gtimeseries_eavg = [];
+var gtimeseries_mavg = [];
+var genergy = 0;
+var gmag = 0;
+var frame = 0;
 
 // display variables
 var c, c2;
 var ctx;
 var ctxgraph;
 var empty;
-var frame = 0;
-var keys = [0,0,0,0];
 var frameskip = 1;
 var dodraw = true;
+var gh = 200;
+var gw = 370;
 
 function rgb(r,g,b) {
     return 'rgb('+r+','+g+','+b+')';
 }
-
+function log10(val) {
+    return Math.log(val) / Math.LN10;
+}
 
 function toFixed(value, precision) {
     var precision = precision || 0;
-    var sneg = (value < 0 && value > -1) ? "-" : "";
+    var sneg = (value < 0) ? "-" : " ";
     var neg = value < 0;
     var power = Math.pow(10, precision);
     var value = Math.round(value * power);
-    var integral = String((neg ? Math.ceil : Math.floor)(value / power));
+    var integral = String(Math.abs((neg ? Math.ceil : Math.floor)(value/power)));
     var fraction = String((neg ? -value : value) % power);
     var padding = new Array(Math.max(precision - fraction.length, 0) + 1).join('0');
     return sneg + (precision ? integral + '.' +  padding + fraction : integral);
@@ -63,6 +72,8 @@ function init_board(N, board){
     gpx_size = canvasN/gN;
     display_board(gN, gboard);
     draw_all();
+
+    init_measurements();
 }
 
 function put_pixel(x, y, size, color){
@@ -100,19 +111,27 @@ function energy_difference(x, y, N, b){
     return -2*energy(x,y,N,b);
 }
 
+function neighborCount(x, y, N, b){
+    var i = x+y*N;
+    return 1*(b[x + ((y+1).mod(N))*N] > 0) + 
+        1*(b[x + ((y-1).mod(N))*N] > 0) + 
+        1*(b[(x+1).mod(N) + y*N] > 0) +
+        1*(b[(x-1).mod(N) + y*N] > 0);
+}
 
-function update_metropolis_energy(){
+function update_metropolis(){
     var x = Math.floor(Math.random()*gN);
     var y = Math.floor(Math.random()*gN);
     var ind = x + y*gN;
     var de = energy_difference(x, y, gN, gboard);
-    if (de < 0 || Math.random() < Math.exp(-de / gT)){
-        if (gboard[ind] == 1) 
-            gboard[ind] = -1;
-        else 
-            gboard[ind] = 1;
+    if (de <= 0 || Math.random() < Math.exp(-de / gT)){
+        gboard[ind] = -gboard[ind];
         put_pixel(x, y, gpx_size, gboard[x+y*gN]);
+
+        genergy += 2.0*de/(gN*gN);
+        gmag += 2.0*gboard[ind]/(gN*gN);
     }
+    gt += 1.0/(gN*gN);
 }
 
 function update_wolff() {
@@ -178,7 +197,7 @@ function update_wolff() {
     var clussize = Object.keys(cluster).length;
     var ds = 2 * state * clussize * gfield;
 
-    if ( (ds < 0) || (Math.random() < Math.exp(-ds)) ) {
+    if ( (ds <= 0) || (Math.random() < Math.exp(-ds)) ) {
         // flip the cluster
         for (var ind in cluster) {
             ind = Number(ind);
@@ -186,6 +205,10 @@ function update_wolff() {
             y = Math.floor( ind / gN );
             gboard[ind] = -state;
             put_pixel(x,y, gpx_size, -state);
+
+            de = energy_difference(x, y, gN, gboard);
+            genergy += 2.0*de/(gN*gN);
+            gmag += 2.0*gboard[ind]/(gN*gN);
         }
     }
     gt += clussize / (gN*gN);
@@ -202,26 +225,89 @@ function update() {
     }
 }
 
-function update_measurements(){
-    var tenergy = 0;
-    var tmag = 0;
+function push_measurement(t, e, m){
+    times.push(t);
+    gtimeseries_energy.push(e);
+    gtimeseries_mag.push(m);
+
+    n = times.length;
+    ge0 = ge_avg;
+    gm0 = gm_avg;
+
+    // welford's algorithm
+    ge_avg = ge_avg + (e - ge_avg)/n;
+    ge_var = ((n-1)*ge_var + (e - ge_avg)*(e - ge0)) / n;
+    gm_avg = gm_avg + (m - gm_avg)/n;
+    gm_var = ((n-1)*gm_var + (m - gm_avg)*(m - gm0)) / n;
+    gtimeseries_eavg.push(ge_avg);
+    gtimeseries_mavg.push(gm_avg);
+}
+
+function init_measurements(){
+    gt = 0;
+    ge_avg = ge_var = gm_avg = gm_var = 0;
+    times = [];
+    gtimeseries_energy = [];
+    gtimeseries_mag = [];
+    gtimeseries_eavg = [];
+    gtimeseries_mavg = [];
+    reset_measurements();
+    push_measurement(gt, genergy, gmag);
+}
+
+function reset_measurements(){
+    genergy = 0;
+    gmag = 0;
+    ge_avg = ge_var = gm_avg = gm_var = 0;
+
     for (var i=0; i<gN; i++){
     for (var j=0; j<gN; j++){
-        tenergy += energy(i,j,gN, gboard);
-        tmag += gboard[i+gN*j];
+        genergy += energy(i,j,gN, gboard);
+        gmag += gboard[i+gN*j];
     }}
-    tenergy /= gN*gN;
-    tmag /= gN*gN;
-    
-    document.getElementById('label_time').innerHTML = "Time: "+toFixed(gt, 4);
-    document.getElementById('label_energy').innerHTML = "Energy per spin: "+toFixed(tenergy, 5);
-    document.getElementById('label_mag').innerHTML = "Magnetization per spin: "+toFixed(tmag, 5);
+    genergy /= gN*gN;
+    gmag /= gN*gN;
+
+    ge_avg = genergy;
+    gm_avg = gmag;
+}
+
+function update_measurements_labels(){
+    lblt = document.getElementById('label_time');
+    lble = document.getElementById('label_energy');
+    lblm = document.getElementById('label_mag');
+
+    lblt.innerHTML = "time = "+toFixed(gt, 4);
+    lble.innerHTML = "e = "+toFixed(genergy, 5);
+    lblm.innerHTML = "m = "+toFixed(gmag, 5);
+
+    lble.innerHTML += "  &lt;e&gt;  = "+toFixed(ge_avg, 5);
+    lblm.innerHTML += " <|m|> = "+toFixed(gm_avg, 5);
+
+    lble.innerHTML += " Var(e) = "+toFixed(ge_var, 7);
+    lblm.innerHTML += " Var(m) = "+toFixed(gm_var, 7);
 }
 
 function draw_all(){
     gbuffer.data = gbufferdata;
     ctx.putImageData(gbuffer, 0, 0);
-    update_measurements();
+    push_measurement(gt, genergy, gmag);
+    update_measurements_labels();
+
+    cleargraph();
+    if (graph_type != "none"){
+        x = times;
+        if (graph_type == "energy")
+            y = gtimeseries_energy;
+        if (graph_type == "mag")
+            y = gtimeseries_mag;
+        if (graph_type == "eavg")
+            y = gtimeseries_eavg;
+        if (graph_type == "mavg")
+            y = gtimeseries_mavg;
+
+        draw_series_graph(x, y);
+    }
 }
 
 
@@ -251,6 +337,7 @@ function update_field(){
     gfield = parseFloat(document.getElementById('field').value);
     document.getElementById('label_field').innerHTML = toFixed(gfield,6);
     calculateFlipTable(gT);
+    reset_measurements();
 }
 function update_frames(){
     frameval = parseFloat(document.getElementById('frames').value);
@@ -284,7 +371,7 @@ function update_method() {
         frameskip = Math.pow(10.,0);
         frame_label.innerHTML = toFixed(1,6);
         frame_slider.step = 0.01;
-        frame_slider.max=0.5;
+        frame_slider.max=2;
         frame_slider.min=-2;
         frame_slider.value = 0;
     }
@@ -318,17 +405,33 @@ function update_step(){
 /*===============================================================================
  * graphing
  *=============================================================================*/
-/*function calculateTics(xmax, xmin, ymax, ymin){
+var axis = 40;
+function x2px(x, xmin, dx) {return ((x - xmin) / dx) * (gw - axis) + axis; }
+function y2px(y, ymin, dy) {return gh - ((y - ymin) / dy * gh); }
+var graph_type = "energy";
+
+function draw_series_graph(xl, yl){
+    var xmax, xmin, ymax, ymin;
+    xmax = ymax = -1e10; xmin = ymin = 1e10;
+
+    xllength = xl.length;
+    for (var i=0; i<xllength; i++){
+        if (xl[i] < xmin) xmin = xl[i];
+        if (xl[i] > xmax) xmax = xl[i];
+        if (yl[i] < ymin) ymin = yl[i];
+        if (yl[i] > ymax) ymax = yl[i];
+    }
+
     var dx = xmax - xmin;
     var dy = ymax - ymin;
 
-    var oom_x = Math.abs(dx)<1?Math.round(Math.log10(dx)):Math.floor(Math.log10(dx));
-    var oom_y = Math.abs(dy)<1?Math.round(Math.log10(dy)):Math.floor(Math.log10(dy));
+    var oom_x = Math.abs(dx)<1?Math.round(log10(dx)):Math.floor(log10(dx));
+    var oom_y = Math.abs(dy)<1?Math.round(log10(dy)):Math.floor(log10(dy));
     var pow10_x = Math.pow(10, oom_x);
     var pow10_y = Math.pow(10, oom_y);
 
-    int idx = (int)(dx / pow10_x);
-    int idy = (int)(dy / pow10_y);
+    var idx = Math.floor(dx / pow10_x);
+    var idy = Math.floor(dy / pow10_y);
 
     if (idx < 1) idx = 10; 
     if (idy < 1) idy = 10; 
@@ -338,17 +441,71 @@ function update_step(){
     if (idy == 1 || idy == 2)
         idy *= 5;
 
+    console.log(idx);
     xtic_major = dx/idx;
     ytic_major = dy/idy;
     xtic_minor = xtic_major/5;
     ytic_minor = ytic_major/5;
-}*/
-function neighborCount(x, y, N, b){
-    var i = x+y*N;
-    return 1*(b[x + ((y+1).mod(N))*N] > 0) + 
-        1*(b[x + ((y-1).mod(N))*N] > 0) + 
-        1*(b[(x+1).mod(N) + y*N] > 0) +
-        1*(b[(x-1).mod(N) + y*N] > 0);
+
+    ctxgraph.font='12px sans-serif';
+    ctxgraph.fillStyle='rgba(0,0,0,1)';
+
+    ctxgraph.beginPath();
+    ctxgraph.moveTo(axis, 0);
+    ctxgraph.lineTo(axis, gh);
+    ctxgraph.stroke();
+
+    ctxgraph.beginPath();
+    ctxgraph.moveTo(axis, y2px(0, ymin, dy));
+    ctxgraph.lineTo(gw, y2px(0, ymin, dy));
+    ctxgraph.stroke();
+
+    for (var i=-idy; i<=idy; i++){
+        y = y2px(i*ytic_major+(ymin+ymax)/2, ymin, dy);
+        ctxgraph.beginPath();
+        ctxgraph.moveTo(axis-5, y);
+        ctxgraph.lineTo(axis, y);
+        ctxgraph.stroke();
+        ctxgraph.fillText(toFixed(i*ytic_major+(ymin+ymax)/2, 3), 0, y+4);
+    }
+
+    for (var i=-idy*5; i<=idy*5; i++){
+        y = y2px(i*ytic_minor+(ymin+ymax)/2, ymin, dy);
+        ctxgraph.beginPath();
+        ctxgraph.moveTo(axis-2, y);
+        ctxgraph.lineTo(axis, y);
+        ctxgraph.stroke();
+    }
+
+    for (var i=0; i<xllength-1; i++){
+        ctxgraph.beginPath();
+        ctxgraph.moveTo(x2px(xl[i], xmin, dx), y2px(yl[i], ymin, dy));
+        ctxgraph.lineTo(x2px(xl[i+1], xmin, dx), y2px(yl[i+1], ymin, dy));
+        ctxgraph.stroke();
+    }
+}
+
+function change_graph(){
+    graph_type = document.getElementById('changegraph').value;
+}
+
+/*function calculateFlipTable(temp){
+    gtable_doflip = [];
+    gtable_flipprob = [];
+    for (var i=0; i<5; i++){
+        de = -2*(2*i - 4) - gfield;
+        arg = -de / temp;
+        gtable_doflip[i] = 1*(de<=0);
+        gtable_flipprob[i] = Math.exp(arg) * (temp > 0);
+    }
+    for (var i=0; i<5; i++){
+        de = 2*(2*i - 4) + gfield;
+        arg = -de / temp;
+        gtable_doflip[i+5] = 1*(de<=0);
+        gtable_flipprob[i+5] = Math.exp(arg) * (temp > 0);
+    }
+
+    wolfp = 1 - Math.exp( -2./temp );
 }
 
 function update_metropolis(){
@@ -366,7 +523,7 @@ function update_metropolis(){
         put_pixel(x, y, gpx_size, gboard[x+y*gN]);
     }
     gt += 1.0/(gN*gN);
-}
+}*/
 
 /*===============================================================================
     initialization and drawing 
@@ -375,9 +532,12 @@ function clear(){
     ctx.fillStyle = 'rgba(200,200,200,0.2)';
     ctx.clearRect(0, 0, c.width, c.height);
     ctx.fillRect(0,0,c.width,c.height);
-    /*ctxgraph.fillStyle = 'rgba(200,200,200,0.2)';
+}
+
+function cleargraph(){
+    ctxgraph.fillStyle = 'rgba(200,200,200,0.2)';
     ctxgraph.clearRect(0, 0, c2.width, c2.height);
-    ctxgraph.fillRect(0,0,c2.width,c2.height);*/
+    ctxgraph.fillRect(0,0,c2.width,c2.height);
 }
 
 var tick = function(T) {
@@ -401,21 +561,6 @@ function change_num(){
 }
 
 function calculateFlipTable(temp){
-    gtable_doflip = [];
-    gtable_flipprob = [];
-    for (var i=0; i<5; i++){
-        de = -2*(2*i - 4) - gfield;
-        arg = -de / temp;
-        gtable_doflip[i] = 1*(de<=0);
-        gtable_flipprob[i] = Math.exp(arg) * (temp > 0);
-    }
-    for (var i=0; i<5; i++){
-        de = 2*(2*i - 4) + gfield;
-        arg = -de / temp;
-        gtable_doflip[i+5] = 1*(de<=0);
-        gtable_flipprob[i+5] = Math.exp(arg) * (temp > 0);
-    }
-
     wolfp = 1 - Math.exp( -2./temp );
 }
 
@@ -427,9 +572,9 @@ var init = function() {
     c = document.getElementById('canvas');
     c.style.cursor = 'url('+empty.toDataURL()+')';
     ctx = c.getContext('2d');
-    /*c2 = document.getElementById('canvas-graph');
+    c2 = document.getElementById('canvas-graph');
     c2.style.cursor = 'url('+empty.toDataURL()+')';
-    ctxgraph = c2.getContext('2d');*/
+    ctxgraph = c2.getContext('2d');
     gbuffer = ctx.getImageData(0, 0, canvasN, canvasN);
     gbufferdata = gbuffer.data;
 
@@ -467,6 +612,7 @@ var init = function() {
     }, false);
 
     clear();
+    cleargraph();
     init_board(gN, null);
     update_display();
 
