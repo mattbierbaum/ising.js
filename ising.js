@@ -471,11 +471,12 @@ function y2px(y, ymin, dy) {return gh - ((y - ymin) / dy * (gh - 2*yaxis) + yaxi
 var graph_type = "energy";
 
 function draw_series_graph(xl, yl){
+    var xllength = xl.length;
     var xmax, xmin, ymax, ymin;
     xmax = ymax = -1e10; xmin = ymin = 1e10;
+    var skip = Math.floor(1+(xllength/gw));
 
-    xllength = xl.length;
-    for (var i=0; i<xllength; i++){
+    for (var i=0; i<xllength; i+=skip){
         if (xl[i] < xmin) xmin = xl[i];
         if (xl[i] > xmax) xmax = xl[i];
         if (yl[i] < ymin) ymin = yl[i];
@@ -539,10 +540,10 @@ function draw_series_graph(xl, yl){
         ctxgraph.stroke();
     }
 
-    for (var i=0; i<xllength-1; i++){
+    for (var i=0; i<xllength-skip; i+=skip){
         ctxgraph.beginPath();
         ctxgraph.moveTo(x2px(xl[i], xmin, dx), y2px(yl[i], ymin, dy));
-        ctxgraph.lineTo(x2px(xl[i+1], xmin, dx), y2px(yl[i+1], ymin, dy));
+        ctxgraph.lineTo(x2px(xl[i+skip], xmin, dx), y2px(yl[i+skip], ymin, dy));
         ctxgraph.stroke();
     }
 }
