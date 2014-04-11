@@ -34,7 +34,7 @@
             <br>
             <div>
                 <label class='eb_label' for="temp" title="Temperature">Temperature</label>
-                <input style='width:150px;' type="range" id="temp" min=-5 max=2 step=0.0001 value=0 oninput='update_temp()' onchange="update_temp()"></input>
+                <input style='width:150px;' type="range" id="temp" min=-5 max=2 step=0.000001 value=0 oninput='update_temp()' onchange="update_temp()"></input>
                 <span onclick='dotextbox(this.id)' class='eb_span' id="label_temp"></span>
                 <input style='width: 80px; display: none;' id='label_temp_input' type='text' value='' onblur='undotextbox(this.id)'>
             </div>
@@ -46,7 +46,7 @@
             </div>
             <div>
                 <label class='eb_label' for="frames" title="Samples per redraw">Sweep skip</label>
-                <input style="width:150px;" type="range" id="frames" min=-2 max=2 step=0.01 value=0 oninput='update_frames()' onchange="update_frames()"></input>
+                <input style="width:150px;" type="range" id="frames" min=-2 max=2 step=0.00001 value=0 oninput='update_frames()' onchange="update_frames()"></input>
                 <span onclick='dotextbox(this.id)' class='eb_span' id="label_frames"></span>
                 <input style='width: 80px; display: none;' id='label_frames_input' type='text' value='' onblur='undotextbox(this.id)'>
             </div>
@@ -56,9 +56,7 @@
                 <input type='radio' name='method' onclick='update_method()' id='method_wolff' value='wolff'>wolff</input>
             </div>
             <div class="withspace">
-                <label class='eb_label' for='num'>Box length</label>
-                <!--<input type='text' id='num' value=0></input>
-                <input type='button' id='changenum' value='Change' onclick='change_num()'></input>-->
+                <label class='eb_label' for='num'>Lattice size</label>
                 <select id='changenum' onchange='change_num()'>
                     <option value="512">512</option>
                     <option value="256" selected="selected">256</option>
@@ -69,7 +67,7 @@
                 </select>
             </div>
             <div class="withspace">
-                <label class='eb_label' for='num'>Graph data</label>
+                <label class='eb_label' for='num'>Graph type</label>
                 <!--<input type='text' id='num' value=0></input>
                 <input type='button' id='changenum' value='Change' onclick='change_num()'></input>-->
                 <select id='changegraph' onchange='change_graph()'>
@@ -94,8 +92,37 @@
                 </center>
             </div>
         </div>
+
         <!-- ==========================   and here ================================= -->
     </div>
+    <br>
+    <br>
+
+<p>Simulation of the Ising model.  You can choose between two update methods -
+metropolis and Wolff algorithm.  Several measurements are stored while running
+including the current energy and magnetization, their averages, and their
+variances.  The current value of each can be found at the top of the right
+panel.  A graph of one value versus time can be directly below that.  The
+particular variable can be changed via the 'Graph type' dropdown box.  These
+measurements can be reset at any time by pressing 'Reset data'.  The 'Reset'
+button restarts the simulation at infinite temperature (implies 'Reset
+data').</p>
+
+<p>The measurements as a time series as well as the graph and actual lattice
+can be downloaded via the buttons on the button.</p>
+
+<p>The other parameters are:</p>
+<ul>
+    <li>Temperature - typical temperature, critical is around T_c = 2.26918531421</li>
+    <li>Field - external magnetic field, H</li>
+    <li>Sweep skip - the simulation can be graphics limited, this determines the
+    number of sweeps between drawing</li>
+    <li>Lattice size - grid size on a side, height = width</li>
+</ul>
+
+<p>Note: the graph can slow down the simulation at long times.  To speed up
+simulation, select 'none' for 'Graph type'.  Data is still being collected.</p>
+
 </div>
 </body>
 </html>

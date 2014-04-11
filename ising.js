@@ -451,6 +451,9 @@ function update_restart(){
 }
 
 function update_step(){
+    if (dodraw)
+        update_pause();
+
     if (update_func == 'metropolis'){
         for (var i=0; i<gN*gN; i++)
             update();
