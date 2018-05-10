@@ -349,7 +349,7 @@ function download_measurements(){
         csv += gtimeseries_energy[i]+", ";
         csv += gtimeseries_mag[i]+"\n";
     }
-    var encoded = encodeURI(csv);
+    var encoded = encodeURI(csv).replace(/#/g,'%23');
     hidden_link_download(encoded, 'ising-data.txt');
 }
 
