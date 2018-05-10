@@ -16,6 +16,7 @@ var gtable_de;
 var gtable_doflip;
 var gtable_flipprob;
 var wolfp = 1-Math.exp(-2./gT);
+var wolfph = 1-Math.exp(-2. * Math.abs(gfield) /gT);
 
 var gt = 0;
 var times = [];
@@ -66,10 +67,10 @@ function init_board(N, board){
     gN = N;
 
     if (board !== null){
-        for (var i=0; i<gN*gN; i++)
-            gboard[i] = board[i]; 
+        for (var i=0; i<gN*gN+1; i++)
+            gboard[i] = board[i];
     } else {
-        for (var i=0; i<gN*gN; i++)
+        for (var i=0; i<gN*gN+1; i++)
             gboard[i] = 2*Math.floor(Math.random()*2) - 1;
     }
 
@@ -98,16 +99,24 @@ function put_pixel(x, y, size, color){
 function display_board(N, board){
     for (var i=0; i<N; i++){
         for (var j=0; j<N; j++){
-            put_pixel(i, j, gpx_size, board[i+j*N]);             
+            put_pixel(i, j, gpx_size, board[N*N] * board[i+j*N]);
         }
     }
 }
 
+function bond_energy(x, y, N, b){
+    return -b[x+y*N]*(b[x + ((y+1).mod(N))*N] +
+        b[x + ((y-1).mod(N))*N] +
+        b[(x+1).mod(N) + y*N] +
+        b[(x-1).mod(N) + y*N]);
+}
+
+function field_energy(x, y, N, b){
+    return -b[x+y*N] * gfield * b[N*N];
+}
+
 function energy(x, y, N, b){
-    return -b[x+y*N]*(b[x + ((y+1).mod(N))*N] + 
-        b[x + ((y-1).mod(N))*N] + 
-        b[(x+1).mod(N) + y*N] + 
-        b[(x-1).mod(N) + y*N] + gfield);
+    return bond_energy(x, y, N, b) + field_energy(x, y, N, b);
 }
 
 
@@ -117,8 +126,8 @@ function energy_difference(x, y, N, b){
 
 function neighborCount(x, y, N, b){
     var i = x+y*N;
-    return 1*(b[x + ((y+1).mod(N))*N] > 0) + 
-        1*(b[x + ((y-1).mod(N))*N] > 0) + 
+    return 1*(b[x + ((y+1).mod(N))*N] > 0) +
+        1*(b[x + ((y-1).mod(N))*N] > 0) +
         1*(b[(x+1).mod(N) + y*N] > 0) +
         1*(b[(x-1).mod(N) + y*N] > 0);
 }
@@ -132,10 +141,10 @@ function update_metropolis(){
         gboard[ind] = -gboard[ind];
 
         if (!onefill)
-            put_pixel(x, y, gpx_size, gboard[x+y*gN]);
+            put_pixel(x, y, gpx_size, gboard[gN*gN] * gboard[x+y*gN]);
 
         genergy += 1.0*de/(gN*gN);
-        gmag += 2.0*gboard[ind]/(gN*gN);
+        gmag += 2.0*gboard[ind] * gboard[gN*gN]/(gN*gN);
     }
     gt += 1.0/(gN*gN);
 }
@@ -146,18 +155,32 @@ function update_wolff() {
     var y = Math.floor(Math.random()*gN);
     var ind = x + y*gN;
 
-    // get the initial state and seed
-    // the cluster
-    var sites = [ind];
-    var state = gboard[ind];
-
-    var is_good = function (next_ind) {
+    var single_bond_energy = function (cur_ind, next_ind) {
+        cur_ind = Number(cur_ind);
         next_ind = Number(next_ind);
-        return (
-                (!(next_ind in cluster)) &&
-                (Math.random() < wolfp) &&
-                (gboard[next_ind]==state)
-               )
+        if ((next_ind < gN * gN) && (cur_ind < gN * gN)) {
+            return gboard[cur_ind] * gboard[next_ind];
+        } else {
+            return gfield * gboard[cur_ind] * gboard[next_ind];
+        }
+    }
+
+    var is_good = function (cur_ind, next_ind) {
+        cur_ind = Number(cur_ind);
+        next_ind = Number(next_ind);
+        if ((next_ind < gN * gN) && (cur_ind < gN * gN)) {
+            return (
+                    (!(next_ind in cluster)) &&
+                    (Math.random() < wolfp) &&
+                    (gboard[cur_ind]*gboard[next_ind]>0)
+                   )
+        } else {
+            return (
+                    (!(next_ind in cluster)) &&
+                    (Math.random() < wolfph) &&
+                    (gboard[cur_ind]*gboard[next_ind]*Math.sign(gfield)>0)
+                   )
+        }
     }
 
     var cluster = {};
@@ -165,58 +188,64 @@ function update_wolff() {
     cluster[ind] = 1;
     frontier[ind] = 1;
     var newfrontier = {};
-    var next_ind = 0;
+
+    var de = 0;
+    var dm = 0;
 
     while (Object.keys(frontier).length > 0) {
         newfrontier = {};
 
-        for (var current_ind in frontier) {
-            current_ind = Number(current_ind);
-            x = current_ind.mod(gN);
-            y = Math.floor( current_ind / gN );
+        for (var cur_ind in frontier) {
+            cur_ind = Number(cur_ind);
+            var num_neighbors = 0;
+            var neighbors = [];
 
-            // do each neighbor
-            next_ind = x + ((y+1).mod(gN))*gN;
-            if (is_good(next_ind)) {
-                newfrontier[next_ind] = 1;
-                cluster[next_ind] = 1;
+            if (cur_ind < gN * gN) {
+                // we're not the ghost!
+                x = cur_ind.mod(gN);
+                y = Math.floor( cur_ind / gN );
+
+                neighbors = [x + ((y+1).mod(gN))*gN,
+                            x + ((y-1).mod(gN))*gN,
+                            (x+1).mod(gN) + y*gN,
+                            (x-1).mod(gN) + y*gN,
+                            gN * gN];
+
+                num_neighbors = 5;
+            } else {
+                for (var i=0; i<gN*gN; i++) {
+                    neighbors.push(i);
+                }
+
+                num_neighbors = gN * gN;
             }
-            next_ind = x + ((y-1).mod(gN))*gN;
-            if (is_good(next_ind)) {
-                newfrontier[next_ind] = 1;
-                cluster[next_ind] = 1;
+
+            for (var i=0; i<num_neighbors; i++) {
+                var next_ind = neighbors[i];
+
+                if (is_good(cur_ind, next_ind)) {
+                    newfrontier[next_ind] = 1;
+                    cluster[next_ind] = 1;
+                }
+
+                de += single_bond_energy(cur_ind, next_ind);
+                if (next_ind == gN * gN || cur_ind == gN * gN) {
+                    dm -= gboard[cur_ind] * gboard[next_ind];
+                }
             }
-            next_ind = (x+1).mod(gN) + y*gN;
-            if (is_good(next_ind)) {
-                newfrontier[next_ind] = 1;
-                cluster[next_ind] = 1;
-            }
-            next_ind = (x-1).mod(gN) + y*gN;
-            if (is_good(next_ind)) {
-                newfrontier[next_ind] = 1;
-                cluster[next_ind] = 1;
-            }
+
+            gboard[cur_ind] = -gboard[cur_ind];
         }
+
         frontier = newfrontier;
     }
-    // having built the cluster, determine the probability of flipping
+
+    genergy += 2.0 * de / (gN * gN);
+    gmag += 2.0 * dm / (gN * gN);
+
+    display_board(gN, gboard);
+
     var clussize = Object.keys(cluster).length;
-    var ds = 2 * state * clussize * gfield;
-
-    if ( (ds <= 0) || (Math.random() < Math.exp(-ds)) ) {
-        // flip the cluster
-        for (var ind in cluster) {
-            ind = Number(ind);
-            x = ind % gN;
-            y = Math.floor( ind / gN );
-            gboard[ind] = -state;
-            put_pixel(x,y, gpx_size, -state);
-
-            de = energy_difference(x, y, gN, gboard);
-            genergy += 1.0*de/(gN*gN);
-            gmag += 2.0*gboard[ind]/(gN*gN);
-        }
-    }
     gt += clussize / (gN*gN);
 }
 
@@ -263,7 +292,7 @@ function init_measurements(){
     gtimeseries_mavg = [];
     lasttime = Date.now();
     reset_measurements();
-    push_measurement(gt, genergy, gmag);
+    push_measurement(gt, genergy, gboard[gN * gN] * gmag);
 }
 
 function reset_measurements(){
@@ -273,11 +302,12 @@ function reset_measurements(){
 
     for (var i=0; i<gN; i++){
     for (var j=0; j<gN; j++){
-        genergy += energy(i,j,gN, gboard);
+        genergy += bond_energy(i,j,gN, gboard) / 2;
+        genergy += field_energy(i,j,gN, gboard);
         gmag += gboard[i+gN*j];
     }}
-    genergy /= gN*gN*2;
-    gmag /= gN*gN;
+    genergy /= gN*gN;
+    gmag *= gboard[gN * gN] / (gN*gN);
 
     ge_avg = genergy;
     gm_avg = gmag;
@@ -387,12 +417,12 @@ function update_temp(){
     else
         gT = Math.pow(10, gTval);
     document.getElementById('label_temp').innerHTML = toFixed(gT,6);
-    calculateFlipTable(gT);
+    calculateFlipTable(gT, gfield);
 }
 function update_field(){
     gfield = parseFloat(document.getElementById('field').value);
     document.getElementById('label_field').innerHTML = toFixed(gfield,6);
-    calculateFlipTable(gT);
+    calculateFlipTable(gT, gfield);
     reset_measurements();
 }
 function update_frames(){
@@ -497,8 +527,8 @@ function draw_series_graph(xl, yl){
     var idx = Math.floor(dx / pow10_x);
     var idy = Math.floor(dy / pow10_y);
 
-    if (idx < 1) idx = 10; 
-    if (idy < 1) idy = 10; 
+    if (idx < 1) idx = 10;
+    if (idy < 1) idy = 10;
 
     if (idx == 1 || idx == 2)
         idx *= 5;
@@ -556,8 +586,9 @@ function change_graph(){
     draw_graph();
 }
 
-function calculateFlipTable(temp){
+function calculateFlipTable(temp, field){
     wolfp = 1 - Math.exp( -2./temp );
+    wolfph = 1 - Math.exp( -2. * Math.abs(field) / temp );
 }
 
 /*function calculateFlipTable(temp){
@@ -600,7 +631,7 @@ function update_metropolis(){
 }*/
 
 /*===============================================================================
-    initialization and drawing 
+    initialization and drawing
 ================================================================================*/
 function clear(){
     ctx.fillStyle = 'rgba(200,200,200,0.2)';
@@ -650,14 +681,14 @@ var init = function() {
     gbuffer = ctx.getImageData(0, 0, canvasN, canvasN);
     gbufferdata = gbuffer.data;
 
-    calculateFlipTable(gT);
+    calculateFlipTable(gT, gfield);
 
     Number.prototype.mod = function(n) {
         return ((this%n)+n)%n;
     }
 
     document.getElementById('label_temp_input').addEventListener("keydown", function(e) {
-        if (e.keyCode == 13){ 
+        if (e.keyCode == 13){
             e.preventDefault();
             step = document.getElementById('temp').step;
             min = document.getElementById('temp').min;
@@ -675,7 +706,7 @@ var init = function() {
     }, false);
 
     document.getElementById('label_field_input').addEventListener("keydown", function(e) {
-        if (e.keyCode == 13){ 
+        if (e.keyCode == 13){
             e.preventDefault();
             document.getElementById('field').value = document.getElementById('label_field_input').value;
             update_field();
@@ -684,7 +715,7 @@ var init = function() {
     }, false);
 
     document.getElementById('label_frames_input').addEventListener("keydown", function(e) {
-        if (e.keyCode == 13){ 
+        if (e.keyCode == 13){
             e.preventDefault();
             tval = parseFloat(document.getElementById('label_frames_input').value);
             if (update_func=='metropolis')
